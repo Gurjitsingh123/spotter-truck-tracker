@@ -1,0 +1,17 @@
+services:
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set DJANGO_ALLOWED_HOSTS in .env}
+      NUM_PROXIES: "1"
+      LOG_LEVEL: INFO
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${APP_PORT:-8090}:80"

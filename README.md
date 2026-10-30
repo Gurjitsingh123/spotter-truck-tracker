@@ -107,6 +107,18 @@ cd backend && pytest && ruff check . && ruff format --check .
 cd frontend && npm run lint && npm run build
 ```
 
+## Running on your own server (Docker)
+
+`docker-compose.yml` runs the API (gunicorn) and the site (nginx) on a single port; nginx serves the build and
+forwards `/api` to Django, so no CORS setup is needed.
+
+```bash
+cp .env.example .env        # set APP_PORT, DJANGO_ALLOWED_HOSTS (server IP/domain) and DJANGO_SECRET_KEY
+docker compose up -d --build
+```
+
+The app is then on `http://<server>:<APP_PORT>`. Update with `git pull && docker compose up -d --build`.
+
 ## Deploying to Render
 
 `render.yaml` defines both services on the free plan.
@@ -140,6 +152,7 @@ frontend/
   src/
     core/                  axios client, formatting
     features/trip/         form, route cards, map, trip playback
+docker-compose.yml
 render.yaml
 ```
 
