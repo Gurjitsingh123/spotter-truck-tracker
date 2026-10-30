@@ -16,6 +16,7 @@ export default function App() {
     const [hour, setHour] = useState(0);
     const [layer, setLayer] = useState<HeatmapLayer>('risk');
     const [focus, setFocus] = useState<CheckpointFocus | null>(null);
+    const [follow, setFollow] = useState(false);
 
     const selectedRouteId = plan ? (picked?.planId === plan.plan_id ? picked.routeId : plan.recommended_route) : null;
     const selectedRoute = plan?.routes.find((route) => route.id === selectedRouteId) ?? null;
@@ -32,6 +33,7 @@ export default function App() {
     const planNewTrip = (input: TripInput) => {
         setHour(0);
         setFocus(null);
+        setFollow(false);
         submit(input);
     };
 
@@ -40,6 +42,7 @@ export default function App() {
             return;
         }
         setHour(Math.min(heatmap.hours, Math.max(0, Math.round(hoursFrom(heatmap.start, stretch.start) * 4) / 4)));
+        setFollow(false);
         setFocus({ routeId: selectedRouteId, index: stretch.fromIndex });
     };
 
@@ -114,6 +117,7 @@ export default function App() {
                     selectedRouteId={selectedRouteId}
                     hour={Math.round(shownHour)}
                     truck={truck}
+                    follow={follow}
                     layer={layer}
                     focus={focus}
                     onSelectRoute={selectRoute}
@@ -128,9 +132,11 @@ export default function App() {
                             error={heatmapError}
                             hour={shownHour}
                             truck={truck}
+                            follow={follow}
                             layer={layer}
                             onHourChange={setHour}
                             onLayerChange={setLayer}
+                            onFollowChange={setFollow}
                             onStretchClick={jumpToStretch}
                         />
                     </Box>

@@ -10,9 +10,11 @@ import {
     heatmapGeoJson,
     heatOpacity,
     heatRadius,
+    loadTruckIcon,
     planBounds,
     riskColor,
     routesGeoJson,
+    TRUCK_ICON,
     truckFeature,
 } from './mapLayers';
 import type { TruckStatus } from './tripTimeline';
@@ -24,11 +26,15 @@ interface TripMapProps {
     selectedRouteId: number | null;
     hour: number;
     truck: TruckStatus | null;
+    follow: boolean;
     layer: HeatmapLayer;
     focus: CheckpointFocus | null;
     onSelectRoute: (routeId: number) => void;
 }
 
+const FOLLOW_ZOOM = 8;
+// Keeps the followed truck above the playback panel at the bottom of the map.
+const FOLLOW_OFFSET: [number, number] = [0, -130];
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
 export default function TripMap({
@@ -37,6 +43,7 @@ export default function TripMap({
     selectedRouteId,
     hour,
     truck,
+    follow,
     layer,
     focus,
     onSelectRoute,
@@ -46,11 +53,13 @@ export default function TripMap({
     const popupRef = useRef(new maplibregl.Popup({ closeButton: true, maxWidth: '280px', offset: 10 }));
     const markersRef = useRef<maplibregl.Marker[]>([]);
     const planRef = useRef(plan);
+    const truckRef = useRef(truck);
     const onSelectRef = useRef(onSelectRoute);
     const [ready, setReady] = useState(false);
 
     useEffect(() => {
         planRef.current = plan;
+        truckRef.current = truck;
         onSelectRef.current = onSelectRoute;
     });
 
@@ -98,18 +107,25 @@ export default function TripMap({
                 id: 'truck-halo',
                 type: 'circle',
                 source: 'truck',
-                paint: { 'circle-radius': 18, 'circle-color': riskColor, 'circle-opacity': 0.35, 'circle-blur': 0.3 },
+                paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 4, 20, 12, 30], 'circle-color': riskColor, 'circle-opacity': 0.35, 'circle-blur': 0.3 },
             });
             map.addLayer({
                 id: 'truck',
-                type: 'circle',
+                type: 'symbol',
                 source: 'truck',
-                paint: {
-                    'circle-radius': 8,
-                    'circle-color': '#0f172a',
-                    'circle-stroke-color': '#ffffff',
-                    'circle-stroke-width': 3,
+                layout: {
+                    'icon-image': TRUCK_ICON,
+                    'icon-size': ['interpolate', ['linear'], ['zoom'], 4, 0.85, 8, 1, 12, 1.3],
+                    'icon-rotate': ['get', 'bearing'],
+                    'icon-rotation-alignment': 'map',
+                    'icon-allow-overlap': true,
+                    'icon-ignore-placement': true,
                 },
+            });
+            loadTruckIcon().then((image) => {
+                if (!map.hasImage(TRUCK_ICON)) {
+                    map.addImage(TRUCK_ICON, image, { pixelRatio: 2 });
+                }
             });
 
             map.on('click', 'route-lines', (event) => {
@@ -209,7 +225,24 @@ export default function TripMap({
         (map.getSource('truck') as GeoJSONSource).setData(
             truck ? { type: 'FeatureCollection', features: [truckFeature(truck)] } : EMPTY,
         );
-    }, [ready, truck]);
+        if (truck && follow && !map.isEasing()) {
+            map.easeTo({ center: truck.position, offset: FOLLOW_OFFSET, duration: 0 });
+        }
+    }, [ready, truck, follow]);
+
+    useEffect(() => {
+        const map = mapRef.current;
+        const position = truckRef.current?.position;
+        if (ready && map && follow && position) {
+            popupRef.current.remove();
+            map.easeTo({
+                center: position,
+                offset: FOLLOW_OFFSET,
+                zoom: Math.max(map.getZoom(), FOLLOW_ZOOM),
+                duration: 900,
+            });
+        }
+    }, [ready, follow]);
 
     useEffect(() => {
         const map = mapRef.current;

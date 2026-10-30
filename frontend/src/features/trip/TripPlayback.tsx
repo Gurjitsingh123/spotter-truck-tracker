@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Box,
@@ -13,6 +13,7 @@ import {
     Typography,
 } from '@mui/material';
 import PauseIcon from '@mui/icons-material/Pause';
+import MyLocationIcon from '@mui/icons-material/MyLocation';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import { formatDuration, formatMiles, formatTime } from '../../core/format';
 import { LAYER_SCALES, legendItems, RISK_COLORS, RISK_LABELS } from './riskLevels';
@@ -34,18 +35,20 @@ interface TripPlaybackProps {
     error: string | null;
     hour: number;
     truck: TruckStatus | null;
+    follow: boolean;
     layer: HeatmapLayer;
     onHourChange: (hour: number) => void;
     onLayerChange: (layer: HeatmapLayer) => void;
+    onFollowChange: (follow: boolean) => void;
     onStretchClick: (stretch: RiskStretch) => void;
 }
 
 type SliderRange = 'trip' | 'forecast';
 
-// The trip view moves in 15 minute steps so the truck glides along with the slider thumb.
+// Dragging snaps to 15 minutes; Play moves every frame so the truck glides instead of jumping.
 const TRIP_STEP_HOURS = 0.25;
-const TRIP_STEP_MS = 120;
-const FORECAST_STEP_MS = 450;
+const TRIP_HOURS_PER_SECOND = 1.2;
+const FORECAST_HOURS_PER_SECOND = 3;
 const MAX_STRETCHES = 3;
 
 function LevelChip({ level }: { level: TruckStatus['level'] }) {
@@ -147,9 +150,11 @@ export default function TripPlayback({
     error,
     hour,
     truck,
+    follow,
     layer,
     onHourChange,
     onLayerChange,
+    onFollowChange,
     onStretchClick,
 }: TripPlaybackProps) {
     const [playing, setPlaying] = useState(false);
@@ -171,20 +176,30 @@ export default function TripPlayback({
         }
     }, [value, hour, onHourChange]);
 
+    const valueRef = useRef(value);
+    useEffect(() => {
+        valueRef.current = value;
+    });
+
     useEffect(() => {
         if (!playing) {
             return;
         }
-        if (value >= max) {
-            setPlaying(false);
-            return;
-        }
-        const timer = window.setTimeout(
-            () => onHourChange(Math.min(max, value + step)),
-            followTrip ? TRIP_STEP_MS : FORECAST_STEP_MS,
-        );
-        return () => window.clearTimeout(timer);
-    }, [playing, value, max, step, followTrip, onHourChange]);
+        const rate = followTrip ? TRIP_HOURS_PER_SECOND : FORECAST_HOURS_PER_SECOND;
+        let last = performance.now();
+        let frame = requestAnimationFrame(function tick(now) {
+            const next = Math.min(max, valueRef.current + ((now - last) / 1000) * rate);
+            last = now;
+            valueRef.current = next;
+            onHourChange(next);
+            if (next >= max) {
+                setPlaying(false);
+                return;
+            }
+            frame = requestAnimationFrame(tick);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [playing, followTrip, max, onHourChange]);
 
     const togglePlay = () => {
         if (!playing && value >= max) {
@@ -279,6 +294,23 @@ export default function TripPlayback({
                             Next 48 h
                         </ToggleButton>
                     </ToggleButtonGroup>
+                    <ToggleButton
+                        value="follow"
+                        size="small"
+                        selected={follow}
+                        disabled={!route}
+                        onChange={() => onFollowChange(!follow)}
+                        sx={{
+                            py: 0.25,
+                            px: 1,
+                            fontSize: 12,
+                            gap: 0.5,
+                            '&.Mui-selected, &.Mui-selected:hover': { bgcolor: 'primary.main', color: '#fff' },
+                        }}
+                    >
+                        <MyLocationIcon sx={{ fontSize: 16 }} />
+                        Follow truck
+                    </ToggleButton>
                 </Stack>
             )}
 

@@ -84,10 +84,30 @@ export function heatRadius(heatmap: Heatmap): ExpressionSpecification {
     return ['interpolate', ['exponential', 2], ['zoom'], 0, pixelsAtZoom0, 16, pixelsAtZoom0 * 2 ** 16];
 }
 
+// Top-down truck pointing north; the map rotates it to the direction of travel.
+const TRUCK_SVG = `
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="80" viewBox="0 0 20 40">
+  <rect x="3.5" y="12" width="13" height="26" rx="1.5" fill="#f8fafc" stroke="#0f172a" stroke-width="1.4"/>
+  <line x1="6" y1="17" x2="14" y2="17" stroke="#94a3b8" stroke-width="0.8"/>
+  <line x1="6" y1="25" x2="14" y2="25" stroke="#94a3b8" stroke-width="0.8"/>
+  <line x1="6" y1="33" x2="14" y2="33" stroke="#94a3b8" stroke-width="0.8"/>
+  <rect x="8.5" y="9.5" width="3" height="3" fill="#0f172a"/>
+  <path d="M4.5 4.5 Q4.5 1.5 7.5 1.5 H12.5 Q15.5 1.5 15.5 4.5 V10 H4.5 Z" fill="#1d4ed8" stroke="#0f172a" stroke-width="1.4"/>
+  <rect x="6.3" y="3" width="7.4" height="2.6" rx="0.8" fill="#bfdbfe"/>
+</svg>`;
+
+export const TRUCK_ICON = 'truck-top';
+
+export function loadTruckIcon(): Promise<HTMLImageElement> {
+    const image = new Image(40, 80);
+    image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(TRUCK_SVG)}`;
+    return image.decode().then(() => image);
+}
+
 export function truckFeature(status: TruckStatus): Feature<Point> {
     return {
         type: 'Feature',
-        properties: { level: status.level },
+        properties: { level: status.level, bearing: status.bearing },
         geometry: { type: 'Point', coordinates: status.position },
     };
 }

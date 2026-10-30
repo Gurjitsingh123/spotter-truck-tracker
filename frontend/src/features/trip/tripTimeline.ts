@@ -9,6 +9,7 @@ export type TripPhase = 'before' | 'driving' | 'arrived';
 export interface TruckStatus {
     phase: TripPhase;
     position: [number, number];
+    bearing: number;
     mile: number;
     level: RiskKey;
     reasons: string[];
@@ -40,15 +41,52 @@ export function hoursFrom(start: string, when: string): number {
     return (new Date(when).getTime() - new Date(start).getTime()) / HOUR_MS;
 }
 
+// Where along a road line the truck is after covering `fraction` of its length, and which way it faces.
+// Uses a flat-earth distance, which is plenty accurate for the few miles between two map vertices.
+function alongLine(line: [number, number][], fraction: number): { position: [number, number]; bearing: number } {
+    const lonScale = (lat: number) => Math.cos((lat * Math.PI) / 180);
+    const lengths = line.slice(1).map(([lon, lat], i) => {
+        const [prevLon, prevLat] = line[i];
+        return Math.hypot((lon - prevLon) * lonScale(lat), lat - prevLat);
+    });
+    const total = lengths.reduce((sum, length) => sum + length, 0);
+    let remaining = Math.min(Math.max(fraction, 0), 1) * total;
+
+    for (let i = 0; i < lengths.length; i++) {
+        const [fromLon, fromLat] = line[i];
+        const [toLon, toLat] = line[i + 1];
+        if (remaining <= lengths[i] || i === lengths.length - 1) {
+            const part = lengths[i] ? Math.min(remaining / lengths[i], 1) : 0;
+            const bearing = (Math.atan2((toLon - fromLon) * lonScale(fromLat), toLat - fromLat) * 180) / Math.PI;
+            return {
+                position: [fromLon + (toLon - fromLon) * part, fromLat + (toLat - fromLat) * part],
+                bearing: (bearing + 360) % 360,
+            };
+        }
+        remaining -= lengths[i];
+    }
+    return { position: line[0], bearing: 0 };
+}
+
 // Between two checkpoints the truck carries the worse of the two, same as the coloured route segments.
+// Its speed on each stretch comes from the checkpoint ETAs, which follow the router's own travel times.
 export function truckStatus(route: TripRoute, when: Date): TruckStatus {
     const stops = route.checkpoints;
+    const segments = route.segments;
     const time = when.getTime();
     const first = stops[0];
     const last = stops[stops.length - 1];
 
-    if (time < etaMs(first)) {
-        return { phase: 'before', position: [first.lon, first.lat], mile: 0, level: first.risk, reasons: first.reasons };
+    if (!segments.length || time < etaMs(first)) {
+        const { bearing } = segments.length ? alongLine(segments[0].coordinates, 0) : { bearing: 0 };
+        return {
+            phase: 'before',
+            position: [first.lon, first.lat],
+            bearing,
+            mile: 0,
+            level: first.risk,
+            reasons: first.reasons,
+        };
     }
     for (let i = 1; i < stops.length; i++) {
         const before = stops[i - 1];
@@ -57,19 +95,26 @@ export function truckStatus(route: TripRoute, when: Date): TruckStatus {
             const span = etaMs(after) - etaMs(before);
             const fraction = span > 0 ? (time - etaMs(before)) / span : 1;
             const leg = worse(before, after);
+            const { position, bearing } = alongLine(segments[i - 1].coordinates, fraction);
             return {
                 phase: 'driving',
-                position: [
-                    before.lon + (after.lon - before.lon) * fraction,
-                    before.lat + (after.lat - before.lat) * fraction,
-                ],
+                position,
+                bearing,
                 mile: before.mile + (after.mile - before.mile) * fraction,
                 level: leg.risk,
                 reasons: leg.reasons,
             };
         }
     }
-    return { phase: 'arrived', position: [last.lon, last.lat], mile: last.mile, level: last.risk, reasons: last.reasons };
+    const { bearing } = alongLine(segments[segments.length - 1].coordinates, 1);
+    return {
+        phase: 'arrived',
+        position: [last.lon, last.lat],
+        bearing,
+        mile: last.mile,
+        level: last.risk,
+        reasons: last.reasons,
+    };
 }
 
 export function worstAhead(route: TripRoute, when: Date): Checkpoint | null {

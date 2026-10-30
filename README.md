@@ -57,8 +57,12 @@ decided it.
 
 **Trip playback.** The panel at the bottom of the map plays the selected route like a replay:
 
-- By default the slider runs from **Depart to Arrive** in 15-minute steps, so the truck marker and the
-  slider thumb move together. **Next 48 h** switches to the full 0–48 h forecast.
+- By default the slider runs from **Depart to Arrive**, so the truck and the slider thumb move together.
+  Play advances every animation frame rather than in steps, and **Next 48 h** switches to the full 0–48 h
+  forecast.
+- The truck follows the road shape of each stretch and turns with it. Its speed on a stretch comes from the
+  checkpoint ETAs (i.e. the router's travel times), so it slows down through cities and climbs.
+  **Follow truck** keeps the camera on it.
 - The headline says where the truck is at that moment ("Route A truck is at mile 410 of 887 mi"), the risk
   it is driving through and why, and the worst thing in the next 2 hours.
 - The coloured strip above the slider is the selected route's risk laid out in time, so you can see
