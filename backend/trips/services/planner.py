@@ -99,7 +99,8 @@ def heatmap_for_plan(plan_id: str) -> dict:
     if plan is None:
         raise PlanExpiredError("This trip has expired. Plan it again to load the weather map.")
 
-    heatmap = build_heatmap(corridor_grid(plan["lines"]), start=plan["start"], load_weight_lb=plan["load_weight_lb"])
+    grid, spacing_mi = corridor_grid(plan["lines"])
+    heatmap = build_heatmap(grid, spacing_mi=spacing_mi, start=plan["start"], load_weight_lb=plan["load_weight_lb"])
     cache.set(f"heatmap:{plan_id}", heatmap, HEATMAP_CACHE_SECONDS)
     return heatmap
 

@@ -16,7 +16,7 @@ MIN_SPACING_MI = 6
 
 def corridor_grid(
     lines: list[list[Point]], *, buffer_mi: float = CORRIDOR_MI, max_points: int = MAX_POINTS
-) -> list[Point]:
+) -> tuple[list[Point], float]:
     coarse = [simplify(line, 2.0) for line in lines]
     longest = max(sum(haversine_mi(a, b) for a, b in pairwise(line)) for line in coarse)
     spacing = max(MIN_SPACING_MI, math.sqrt(longest * 2 * buffer_mi * 1.5 / max_points))
@@ -25,14 +25,15 @@ def corridor_grid(
     while len(grid) > max_points:
         spacing *= 1.15
         grid = _grid(coarse, spacing, buffer_mi)
-    return grid
+    return grid, spacing
 
 
-def build_heatmap(grid: list[Point], *, start: datetime, load_weight_lb: float) -> dict:
+def build_heatmap(grid: list[Point], *, spacing_mi: float, start: datetime, load_weight_lb: float) -> dict:
     forecasts = hourly_forecast(grid, start=start, hours=FORECAST_HOURS)
     return {
         "start": start.isoformat(),
         "hours": FORECAST_HOURS,
+        "spacing_mi": round(spacing_mi, 1),
         "points": [[round(lon, 3), round(lat, 3)] for lat, lon in grid],
         "risk": [[int(assess(hour, load_weight_lb).level) for hour in series] for series in forecasts],
         "wind": [[round(hour.wind_mph) for hour in series] for series in forecasts],
