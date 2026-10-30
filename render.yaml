@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: truck-routing-api
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn config.wsgi:application --workers 2 --threads 4 --timeout 90
+    healthCheckPath: /api/health/
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_DEBUG
+        value: "false"
+      - key: NUM_PROXIES
+        value: "1"
+      - key: CORS_ALLOWED_ORIGIN_REGEXES
+        value: ^https://truck-routing-web(-[a-z0-9]+)?\.onrender\.com$
+
+  - type: web
+    name: truck-routing-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: VITE_API_URL
+        sync: false
