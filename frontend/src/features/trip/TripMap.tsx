@@ -13,8 +13,9 @@ import {
     planBounds,
     riskColor,
     routesGeoJson,
-    truckPosition,
+    truckFeature,
 } from './mapLayers';
+import type { TruckStatus } from './tripTimeline';
 import type { CheckpointFocus, Heatmap, HeatmapLayer, TripPlan } from './types';
 
 interface TripMapProps {
@@ -22,6 +23,7 @@ interface TripMapProps {
     heatmap: Heatmap | null;
     selectedRouteId: number | null;
     hour: number;
+    truck: TruckStatus | null;
     layer: HeatmapLayer;
     focus: CheckpointFocus | null;
     onSelectRoute: (routeId: number) => void;
@@ -29,7 +31,16 @@ interface TripMapProps {
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
-export default function TripMap({ plan, heatmap, selectedRouteId, hour, layer, focus, onSelectRoute }: TripMapProps) {
+export default function TripMap({
+    plan,
+    heatmap,
+    selectedRouteId,
+    hour,
+    truck,
+    layer,
+    focus,
+    onSelectRoute,
+}: TripMapProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<MapLibreMap | null>(null);
     const popupRef = useRef(new maplibregl.Popup({ closeButton: true, maxWidth: '280px', offset: 10 }));
@@ -82,6 +93,12 @@ export default function TripMap({ plan, heatmap, selectedRouteId, hour, layer, f
                 type: 'circle',
                 source: 'checkpoints',
                 paint: { 'circle-color': riskColor, 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5 },
+            });
+            map.addLayer({
+                id: 'truck-halo',
+                type: 'circle',
+                source: 'truck',
+                paint: { 'circle-radius': 18, 'circle-color': riskColor, 'circle-opacity': 0.35, 'circle-blur': 0.3 },
             });
             map.addLayer({
                 id: 'truck',
@@ -145,7 +162,7 @@ export default function TripMap({ plan, heatmap, selectedRouteId, hour, layer, f
             new maplibregl.Marker({ color: '#0f172a' }).setLngLat([plan.origin.lon, plan.origin.lat]),
             new maplibregl.Marker({ color: '#2563eb' }).setLngLat([plan.destination.lon, plan.destination.lat]),
         ].map((marker) => marker.addTo(map));
-        map.fitBounds(planBounds(plan), { padding: { top: 60, bottom: 190, left: 60, right: 60 }, duration: 900 });
+        map.fitBounds(planBounds(plan), { padding: { top: 60, bottom: 300, left: 60, right: 60 }, duration: 900 });
     }, [ready, plan]);
 
     useEffect(() => {
@@ -186,18 +203,13 @@ export default function TripMap({ plan, heatmap, selectedRouteId, hour, layer, f
 
     useEffect(() => {
         const map = mapRef.current;
-        const route = plan?.routes.find((item) => item.id === selectedRouteId);
         if (!ready || !map) {
             return;
         }
-        const truck = map.getSource('truck') as GeoJSONSource;
-        if (!route || !heatmap) {
-            truck.setData(EMPTY);
-            return;
-        }
-        const when = new Date(new Date(heatmap.start).getTime() + hour * 3_600_000);
-        truck.setData({ type: 'FeatureCollection', features: [truckPosition(route, when)] });
-    }, [ready, plan, heatmap, selectedRouteId, hour]);
+        (map.getSource('truck') as GeoJSONSource).setData(
+            truck ? { type: 'FeatureCollection', features: [truckFeature(truck)] } : EMPTY,
+        );
+    }, [ready, truck]);
 
     useEffect(() => {
         const map = mapRef.current;

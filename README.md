@@ -55,12 +55,23 @@ average risk (0 = Low … 4 = No Travel), then travel time. No Travel comes firs
 somewhere can never be recommended over one that is merely severe. The UI shows which of these criteria
 decided it.
 
-**Heatmap.** After the routes come back, the frontend asks for the corridor forecast separately so the routes
-show up without waiting for it. The API lays a grid over a 35-mile band around all three routes (spacing is
+**Trip playback.** The panel at the bottom of the map plays the selected route like a replay:
+
+- By default the slider runs from **Depart to Arrive** in 15-minute steps, so the truck marker and the
+  slider thumb move together. **Next 48 h** switches to the full 0–48 h forecast.
+- The headline says where the truck is at that moment ("Route A truck is at mile 410 of 887 mi"), the risk
+  it is driving through and why, and the worst thing in the next 2 hours.
+- The coloured strip above the slider is the selected route's risk laid out in time, so you can see
+  *when* the truck meets bad weather before you press play. The halo around the truck takes the same colour.
+- **Watch out on Route X** lists the riskiest stretches (e.g. "High · mi 260–310 · 2:10 PM · Wind 38 mph");
+  clicking one jumps the slider to that time and flies the map there.
+
+**Heatmap.** The shading is the forecast for the whole area around the three routes at the slider time, so you
+can see a storm moving relative to the truck. After the routes come back, the frontend asks for it separately
+so the routes show up without waiting. The API lays a grid over a 35-mile band around all three routes (spacing is
 picked so it stays under ~300 points), fetches 48 hours for every point in one go and scores each hour with
 the same rules. All 49 hours are loaded into the map once; moving the slider or switching between
 Risk / Wind / Rain / Snow only changes a paint expression in MapLibre, so it is instant and never re-downloads.
-The truck marker on the selected route shows where the driver would be at the slider time.
 
 ## Running locally
 
@@ -124,7 +135,7 @@ backend/
 frontend/
   src/
     core/                  axios client, formatting
-    features/trip/         form, route cards, map, heatmap controls
+    features/trip/         form, route cards, map, trip playback
 render.yaml
 ```
 

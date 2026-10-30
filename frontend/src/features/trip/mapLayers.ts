@@ -2,6 +2,7 @@ import type { ExpressionSpecification } from 'maplibre-gl';
 import type { Feature, FeatureCollection, LineString, Point } from 'geojson';
 import { formatTime } from '../../core/format';
 import { LAYER_SCALES, layerColorStops, RISK_COLORS, RISK_LABELS } from './riskLevels';
+import type { TruckStatus } from './tripTimeline';
 import type { Checkpoint, Heatmap, HeatmapLayer, TripPlan, TripRoute } from './types';
 
 export const BASEMAP_STYLE = 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
@@ -83,25 +84,12 @@ export function heatRadius(heatmap: Heatmap): ExpressionSpecification {
     return ['interpolate', ['exponential', 2], ['zoom'], 0, pixelsAtZoom0, 16, pixelsAtZoom0 * 2 ** 16];
 }
 
-export function truckPosition(route: TripRoute, when: Date): Feature<Point> {
-    const time = when.getTime();
-    const stops = route.checkpoints;
-    let position: [number, number] = [stops[0].lon, stops[0].lat];
-
-    for (let i = 1; i < stops.length; i++) {
-        const before = new Date(stops[i - 1].eta).getTime();
-        const after = new Date(stops[i].eta).getTime();
-        if (time <= after) {
-            const fraction = after > before ? Math.max(0, (time - before) / (after - before)) : 1;
-            position = [
-                stops[i - 1].lon + (stops[i].lon - stops[i - 1].lon) * fraction,
-                stops[i - 1].lat + (stops[i].lat - stops[i - 1].lat) * fraction,
-            ];
-            break;
-        }
-        position = [stops[i].lon, stops[i].lat];
-    }
-    return { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: position } };
+export function truckFeature(status: TruckStatus): Feature<Point> {
+    return {
+        type: 'Feature',
+        properties: { level: status.level },
+        geometry: { type: 'Point', coordinates: status.position },
+    };
 }
 
 export function planBounds(plan: TripPlan): [[number, number], [number, number]] {

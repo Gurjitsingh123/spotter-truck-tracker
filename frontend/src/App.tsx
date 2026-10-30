@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert, Box, LinearProgress, Stack, Typography } from '@mui/material';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import { formatDateTime } from './core/format';
-import HeatmapControls from './features/trip/HeatmapControls';
 import RouteCard from './features/trip/RouteCard';
 import TripForm from './features/trip/TripForm';
 import TripMap from './features/trip/TripMap';
-import type { CheckpointFocus, HeatmapLayer } from './features/trip/types';
+import TripPlayback from './features/trip/TripPlayback';
+import { hoursFrom, truckStatus, type RiskStretch } from './features/trip/tripTimeline';
+import type { CheckpointFocus, HeatmapLayer, TripInput } from './features/trip/types';
 import { useTripPlan } from './features/trip/useTripPlan';
 
 export default function App() {
@@ -18,6 +19,29 @@ export default function App() {
 
     const selectedRouteId = plan ? (picked?.planId === plan.plan_id ? picked.routeId : plan.recommended_route) : null;
     const selectedRoute = plan?.routes.find((route) => route.id === selectedRouteId) ?? null;
+
+    const shownHour = Math.min(hour, heatmap?.hours ?? hour);
+    const truck = useMemo(() => {
+        if (!selectedRoute) {
+            return null;
+        }
+        const start = heatmap?.start ?? selectedRoute.checkpoints[0].eta;
+        return truckStatus(selectedRoute, new Date(new Date(start).getTime() + shownHour * 3_600_000));
+    }, [selectedRoute, heatmap, shownHour]);
+
+    const planNewTrip = (input: TripInput) => {
+        setHour(0);
+        setFocus(null);
+        submit(input);
+    };
+
+    const jumpToStretch = (stretch: RiskStretch) => {
+        if (!heatmap || selectedRouteId === null) {
+            return;
+        }
+        setHour(Math.min(heatmap.hours, Math.max(0, Math.round(hoursFrom(heatmap.start, stretch.start) * 4) / 4)));
+        setFocus({ routeId: selectedRouteId, index: stretch.fromIndex });
+    };
 
     const selectRoute = useCallback(
         (routeId: number) => plan && setPicked({ planId: plan.plan_id, routeId }),
@@ -49,7 +73,7 @@ export default function App() {
                     Compare three truck routes by the weather the driver will meet on the way.
                 </Typography>
 
-                <TripForm busy={planning} onSubmit={submit} />
+                <TripForm busy={planning} onSubmit={planNewTrip} />
                 {planning && <LinearProgress sx={{ mt: 2 }} />}
                 {error && (
                     <Alert severity="error" sx={{ mt: 2 }}>
@@ -88,22 +112,26 @@ export default function App() {
                     plan={plan}
                     heatmap={heatmap}
                     selectedRouteId={selectedRouteId}
-                    hour={Math.min(hour, heatmap?.hours ?? hour)}
+                    hour={Math.round(shownHour)}
+                    truck={truck}
                     layer={layer}
                     focus={focus}
                     onSelectRoute={selectRoute}
                 />
                 {plan && (
-                    <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 24, maxWidth: 820, mx: 'auto' }}>
-                        <HeatmapControls
+                    <Box sx={{ position: 'absolute', left: 16, right: 16, bottom: 24, maxWidth: 880, mx: 'auto' }}>
+                        <TripPlayback
+                            plan={plan}
+                            route={selectedRoute}
                             heatmap={heatmap}
                             loading={heatmapLoading}
                             error={heatmapError}
-                            hour={hour}
+                            hour={shownHour}
+                            truck={truck}
                             layer={layer}
-                            arrival={selectedRoute?.arrival ?? null}
                             onHourChange={setHour}
                             onLayerChange={setLayer}
+                            onStretchClick={jumpToStretch}
                         />
                     </Box>
                 )}
