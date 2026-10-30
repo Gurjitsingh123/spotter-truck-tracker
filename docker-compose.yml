@@ -1,7 +1,11 @@
+name: truck-routing
+
 services:
   api:
     build: ./backend
+    image: truck-routing-api
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?set DJANGO_SECRET_KEY in .env}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:?set DJANGO_ALLOWED_HOSTS in .env}
@@ -10,7 +14,9 @@ services:
 
   web:
     build: ./frontend
+    image: truck-routing-web
     restart: unless-stopped
+    mem_limit: 128m
     depends_on:
       - api
     ports:

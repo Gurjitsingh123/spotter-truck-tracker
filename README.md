@@ -113,11 +113,14 @@ cd frontend && npm run lint && npm run build
 forwards `/api` to Django, so no CORS setup is needed.
 
 ```bash
-cp .env.example .env        # set APP_PORT, DJANGO_ALLOWED_HOSTS (server IP/domain) and DJANGO_SECRET_KEY
+cp .env.example .env        # set APP_PORT, DJANGO_ALLOWED_HOSTS (server IP) and DJANGO_SECRET_KEY
 docker compose up -d --build
 ```
 
 The app is then on `http://<server>:<APP_PORT>`. Update with `git pull && docker compose up -d --build`.
+
+Everything runs under the `truck-routing` compose project, so it can be removed completely with
+`docker compose down --rmi all --volumes --remove-orphans` and deleting the folder.
 
 ## Deploying to Render
 
