@@ -45,6 +45,7 @@ CACHES = {
 }
 
 CORS_ALLOWED_ORIGINS = _env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOWED_ORIGIN_REGEXES = _env_list("CORS_ALLOWED_ORIGIN_REGEXES")
 
 REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
@@ -52,7 +53,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
     "DEFAULT_THROTTLE_CLASSES": ["rest_framework.throttling.ScopedRateThrottle"],
-    "DEFAULT_THROTTLE_RATES": {"trip_plan": "20/min", "trip_heatmap": "30/min"},
+    "DEFAULT_THROTTLE_RATES": {"trip_plan": "30/min", "trip_heatmap": "60/min"},
+    "NUM_PROXIES": int(os.getenv("NUM_PROXIES", "0")),
 }
 
 VALHALLA_URL = os.getenv("VALHALLA_URL", "https://valhalla1.openstreetmap.de/route")
